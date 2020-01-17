@@ -20,8 +20,7 @@ router.post("/convert", auth, (req, res) => {
 });
 
 router.post("/post", auth, (req, res) => {
-  //if ((new Date().getHours() + 4) % (24 / POSTS_PER_DAY) === 0)
-  post();
+  if (new Date().getHours() % (24 / POSTS_PER_DAY) === 0) post();
   res.sendStatus(200);
 });
 
