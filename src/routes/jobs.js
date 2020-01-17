@@ -20,7 +20,8 @@ router.post("/convert", auth, (req, res) => {
 });
 
 router.post("/post", auth, (req, res) => {
-  if ((new Date().getHours() + 4) % (24 / POSTS_PER_DAY) === 0) post();
+  //if ((new Date().getHours() + 4) % (24 / POSTS_PER_DAY) === 0)
+  post();
   res.sendStatus(200);
 });
 
@@ -34,11 +35,12 @@ const post = async () => {
   console.log(iteration);
   const title = getTitle(`${date} #${iteration}`);
   console.log(title);
-  const permlink = title
-    .toLowerCase()
-    .replace(/ /g, "-")
-    .replace(/\//g, "-")
-    .replace(/#/g, "");
+  const permlink =
+    title
+      .toLowerCase()
+      .replace(/ /g, "-")
+      .replace(/\//g, "-")
+      .replace(/#/g, "") + Date.now();
   console.log(permlink);
   const json_metadata = {tags};
   const body = await getPostBody();
