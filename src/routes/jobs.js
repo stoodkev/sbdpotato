@@ -127,7 +127,7 @@ const convert = async () => {
     )} STEEM`;
     console.log(`Buying ${amountBuy} worth of SBD.`);
     const orderID = getID();
-    const expiration = parseInt(new Date().getTime() / 1000);
+    const expiration = parseInt(new Date().getTime() / 1000 + 10);
     const order = await steem.broadcast.limitOrderCreateAsync(
       WIF,
       ACCOUNT,
