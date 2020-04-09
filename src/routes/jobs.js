@@ -1,6 +1,8 @@
 const express = require("express");
 const router = new express.Router();
 const steem = require("steem");
+const getJSON = require("get-json");
+
 const {
   ACCOUNT,
   WIF,
@@ -14,7 +16,7 @@ const {
 const auth = require("../middlewares/auth");
 const {getPostBody, getTitle, tags} = require("../templates/post");
 
-router.post("/convert", auth, (req, res) => {
+router.get("/convert", (req, res) => {
   convert();
   res.sendStatus(200);
 });
@@ -118,14 +120,33 @@ const timeout = ms => {
 };
 
 const convert = async () => {
-  let account = await steem.api.getAccountsAsync([ACCOUNT]);
+  let [account, priceSteem, priceBtc] = [
+    await steem.api.getAccountsAsync([ACCOUNT]),
+    await getPriceSteemAsync(),
+    await getBTCPriceAsync()
+  ];
   const initialSBD = account[0].sbd_balance;
   const steemBalance = account[0].balance;
   if (parseFloat(steemBalance) !== 0) {
-    const amountBuy = `${Math.min(parseFloat(steemBalance), MAX_BUY).toFixed(
-      3
-    )} STEEM`;
+    let amountBuy = `${parseFloat(MAX_BUY).toFixed(3)} STEEM`;
     console.log(`Buying ${amountBuy} worth of SBD.`);
+    const bids = (await steem.api.getOrderBookAsync(500)).bids;
+    console.log(bids);
+    let sbd = 0.001;
+    let STEEM = 0;
+    const priceSteemUSD = priceSteem * priceBtc;
+    console.log(`1 STEEM=$${priceSteemUSD}`);
+    for (const bid of bids) {
+      if ((priceSteemUSD / bid.sbd) * bid.steem > 1) {
+        amountBuy = `${parseFloat(STEEM).toFixed(3)} STEEM`;
+        console.log("too expensive:", bid);
+        break;
+      }
+      STEEM += bid.steem / 1000;
+      if (STEEM >= MAX_BUY) break;
+      sbd += bid.sbd / 1000;
+    }
+    console.log(`Getting at least ${sbd} SBD for ${amountBuy}`);
     const orderID = getID();
     const expiration = parseInt(new Date().getTime() / 1000 + 10);
     const order = await steem.broadcast.limitOrderCreateAsync(
@@ -133,7 +154,7 @@ const convert = async () => {
       ACCOUNT,
       orderID,
       amountBuy,
-      "0.001 SBD",
+      `${sbd.toFixed(3)} SBD`,
       true,
       expiration
     );
@@ -157,5 +178,27 @@ const convert = async () => {
 };
 
 const getID = () => Math.floor(Math.random() * 10000000);
+
+function getPriceSteemAsync() {
+  return new Promise(function(resolve, reject) {
+    getJSON(
+      "https://bittrex.com/api/v1.1/public/getticker?market=BTC-STEEM",
+      function(err, response) {
+        resolve(response.result["Bid"]);
+      }
+    );
+  });
+}
+
+function getBTCPriceAsync() {
+  return new Promise(function(resolve, reject) {
+    getJSON(
+      "https://bittrex.com/api/v1.1/public/getticker?market=USDT-BTC",
+      function(err, response) {
+        resolve(response.result["Bid"]);
+      }
+    );
+  });
+}
 
 module.exports = router;
